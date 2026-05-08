@@ -1,0 +1,96 @@
+@page "/Account/Login"
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using PasswordManager.Web.Data.Entities
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILogger<Login> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Вход в PassVault</PageTitle>
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-logo">🔐</div>
+        <h1 class="auth-title">Вход в PassVault</h1>
+        <p class="auth-subtitle">Введите данные для доступа к хранилищу</p>
+
+        <StatusMessage Message="@_errorMessage" />
+
+        <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label for="email">E-mail</label>
+                <InputText id="email" class="form-control" @bind-Value="Input.Email"
+                           placeholder="your@email.com" autocomplete="username" />
+                <ValidationMessage For="() => Input.Email" class="field-error" />
+            </div>
+
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <InputText id="password" type="password" class="form-control" @bind-Value="Input.Password"
+                           placeholder="Введите пароль" autocomplete="current-password" />
+                <ValidationMessage For="() => Input.Password" class="field-error" />
+            </div>
+
+            <div class="form-group form-check">
+                <InputCheckbox id="remember" @bind-Value="Input.RememberMe" />
+                <label for="remember">Запомнить меня</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">🔓 Войти</button>
+        </EditForm>
+
+        <div class="auth-links">
+            <a href="/Account/Register">Нет аккаунта? Зарегистрироваться →</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? _errorMessage;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+    }
+
+    private async Task LoginUser()
+    {
+        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User logged in.");
+            RedirectManager.RedirectTo(ReturnUrl);
+        }
+        else
+        {
+            _errorMessage = "Ошибка: Неверный e-mail или пароль.";
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "E-mail обязателен")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Некорректный e-mail")]
+        public string Email { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Пароль обязателен")]
+        [System.ComponentModel.DataAnnotations.DataType(System.ComponentModel.DataAnnotations.DataType.Password)]
+        public string Password { get; set; } = "";
+
+        public bool RememberMe { get; set; }
+    }
+}

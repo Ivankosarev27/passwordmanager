@@ -1,0 +1,63 @@
+@page "/favorites"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using PasswordManager.Web.Data.Entities
+@inject PasswordService PasswordService
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Nav
+
+<PageTitle>Избранное</PageTitle>
+
+<div class="page-header">
+    <h1>⭐ Избранное</h1>
+</div>
+
+@if (_favorites.Any())
+{
+    <div class="passwords-grid">
+        @foreach (var p in _favorites)
+        {
+            <div class="password-card">
+                <div class="card-header">
+                    <span class="card-icon">@(p.Category?.Icon ?? "🔑")</span>
+                    <strong>@p.SiteName</strong>
+                    <span class="favorite-badge">⭐</span>
+                </div>
+                <div class="card-body">
+                    <div class="field-row"><label>Логин</label><span>@p.Username</span></div>
+                    <div class="field-row">
+                        <label>Пароль</label>
+                        <span class="password-dots">••••••••</span>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-sm btn-secondary" @onclick="() => GoEdit(p.Id)">✏️ Изменить</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="empty-state">
+        <div class="empty-icon">⭐</div>
+        <h3>Избранных паролей нет</h3>
+        <p>Отмечайте пароли звёздочкой при создании или редактировании</p>
+        <button class="btn btn-primary" @onclick='() => Nav.NavigateTo("/passwords")'>К паролям</button>
+    </div>
+}
+
+@code {
+    private List<PasswordEntry> _favorites = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        _favorites = await PasswordService.GetFavoritesAsync(userId);
+    }
+
+    private void GoEdit(int id) => Nav.NavigateTo($"/edit/{id}");
+}

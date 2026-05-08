@@ -1,0 +1,87 @@
+@page "/"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject PasswordService PasswordService
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Nav
+
+<PageTitle>PassVault — Главная</PageTitle>
+
+<div class="dashboard">
+    <div class="dashboard-header">
+        <h1>Добро пожаловать, @_userName! 👋</h1>
+        <p class="subtitle">Ваше безопасное хранилище паролей</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">🔑</div>
+            <div class="stat-value">@_totalCount</div>
+            <div class="stat-label">Всего паролей</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⭐</div>
+            <div class="stat-value">@_favCount</div>
+            <div class="stat-label">Избранных</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📁</div>
+            <div class="stat-value">@_categoryCount</div>
+            <div class="stat-label">Категорий</div>
+        </div>
+    </div>
+
+    <div class="quick-actions">
+        <button class="btn btn-primary btn-lg" @onclick='() => Nav.NavigateTo("/add")'>
+            ➕ Добавить пароль
+        </button>
+        <button class="btn btn-secondary btn-lg" @onclick='() => Nav.NavigateTo("/passwords")'>
+            📋 Все пароли
+        </button>
+    </div>
+
+    @if (_recent.Any())
+    {
+        <div class="recent-section">
+            <h2>Последние добавленные</h2>
+            <div class="password-list-mini">
+                @foreach (var p in _recent)
+                {
+                    <div class="password-card-mini" @onclick="() => GoEdit(p.Id)">
+                        <span class="site-icon">@(p.Category?.Icon ?? "🔑")</span>
+                        <div class="mini-info">
+                            <strong>@p.SiteName</strong>
+                            <small>@p.Username</small>
+                        </div>
+                        <span class="mini-date">@p.CreatedAt.ToString("dd.MM.yyyy")</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string _userName = "";
+    private int _totalCount, _favCount, _categoryCount;
+    private List<PasswordManager.Web.Data.Entities.PasswordEntry> _recent = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        _userName = auth.User.Identity?.Name ?? "Пользователь";
+
+        _totalCount = await PasswordService.GetTotalCountAsync(userId);
+        var favs = await PasswordService.GetFavoritesAsync(userId);
+        _favCount = favs.Count;
+        var cats = await PasswordService.GetCategoriesAsync(userId);
+        _categoryCount = cats.Count;
+        var all = await PasswordService.GetPasswordsAsync(userId);
+        _recent = all.OrderByDescending(p => p.CreatedAt).Take(5).ToList();
+    }
+
+    private void GoEdit(int id) => Nav.NavigateTo($"/edit/{id}");
+}

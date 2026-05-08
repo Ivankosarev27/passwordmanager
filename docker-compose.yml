@@ -1,0 +1,60 @@
+name: PasswordManager
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: passvault-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: passvault
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - passvault_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d passvault"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - passvault-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: passvault-image
+    container_name: passvault-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=passvault;Username=postgres;Password=postgres"
+      DataProtection__KeysPath: /keys
+    ports:
+      - "8005:8080"
+    volumes:
+      - passvault_keys:/keys
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - passvault-net
+
+volumes:
+  passvault_data:
+    driver: local
+  passvault_keys:
+    driver: local
+
+networks:
+  passvault-net:
+    driver: bridge

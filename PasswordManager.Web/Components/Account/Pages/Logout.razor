@@ -1,0 +1,21 @@
+@page "/Account/Logout"
+@using Microsoft.AspNetCore.Identity
+@using PasswordManager.Web.Data.Entities
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpMethods.IsPost(HttpContext.Request.Method))
+        {
+            await SignInManager.SignOutAsync();
+            RedirectManager.RedirectTo("/Account/Login");
+        }
+    }
+}

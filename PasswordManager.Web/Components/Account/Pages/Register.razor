@@ -1,0 +1,127 @@
+@page "/Account/Register"
+@using Microsoft.AspNetCore.Identity
+@using PasswordManager.Web.Data.Entities
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILogger<Register> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+@inject PasswordManager.Web.Services.UserSettingsService SettingsService
+@inject PasswordManager.Web.Data.ApplicationDbContext DbContext
+
+<PageTitle>Регистрация — PassVault</PageTitle>
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-logo">🔐</div>
+        <h1 class="auth-title">Создать аккаунт</h1>
+        <p class="auth-subtitle">Безопасное хранение ваших паролей</p>
+
+        <StatusMessage Message="@_message" />
+
+        <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label>Имя</label>
+                <InputText class="form-control" @bind-Value="Input.DisplayName" placeholder="Ваше имя" />
+                <ValidationMessage For="() => Input.DisplayName" class="field-error" />
+            </div>
+
+            <div class="form-group">
+                <label>E-mail</label>
+                <InputText type="email" class="form-control" @bind-Value="Input.Email"
+                           placeholder="your@email.com" autocomplete="username" />
+                <ValidationMessage For="() => Input.Email" class="field-error" />
+            </div>
+
+            <div class="form-group">
+                <label>Пароль</label>
+                <InputText type="password" class="form-control" @bind-Value="Input.Password"
+                           placeholder="Минимум 6 символов" autocomplete="new-password" />
+                <ValidationMessage For="() => Input.Password" class="field-error" />
+            </div>
+
+            <div class="form-group">
+                <label>Подтвердите пароль</label>
+                <InputText type="password" class="form-control" @bind-Value="Input.ConfirmPassword"
+                           placeholder="Повторите пароль" autocomplete="new-password" />
+                <ValidationMessage For="() => Input.ConfirmPassword" class="field-error" />
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">📝 Зарегистрироваться</button>
+        </EditForm>
+
+        <div class="auth-links">
+            <a href="/Account/Login">Уже есть аккаунт? Войти →</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? _message;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private async Task RegisterUser()
+    {
+        var user = new ApplicationUser
+        {
+            UserName = Input.Email,
+            Email = Input.Email,
+            DisplayName = Input.DisplayName
+        };
+
+        var result = await UserManager.CreateAsync(user, Input.Password);
+        if (!result.Succeeded)
+        {
+            _message = string.Join("; ", result.Errors.Select(e => e.Description));
+            return;
+        }
+
+        // Создаём дефолтные категории и настройки для нового пользователя
+        await SeedDefaultDataAsync(user.Id);
+
+        Logger.LogInformation("New user registered: {Email}", Input.Email);
+        await SignInManager.SignInAsync(user, isPersistent: false);
+        RedirectManager.RedirectTo(ReturnUrl ?? "/");
+    }
+
+    private async Task SeedDefaultDataAsync(string userId)
+    {
+        DbContext.Categories.AddRange(
+            new PasswordManager.Web.Data.Entities.Category { Name = "Email",    Icon = "📧", UserId = userId },
+            new PasswordManager.Web.Data.Entities.Category { Name = "Social",   Icon = "📱", UserId = userId },
+            new PasswordManager.Web.Data.Entities.Category { Name = "Banking",  Icon = "🏦", UserId = userId },
+            new PasswordManager.Web.Data.Entities.Category { Name = "Work",     Icon = "💼", UserId = userId },
+            new PasswordManager.Web.Data.Entities.Category { Name = "Shopping", Icon = "🛒", UserId = userId }
+        );
+        await DbContext.SaveChangesAsync();
+        await SettingsService.GetSettingsAsync(userId); // создаст 1:1 settings
+    }
+
+    private sealed class InputModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Имя обязательно")]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string DisplayName { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "E-mail обязателен")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Некорректный e-mail")]
+        public string Email { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Пароль обязателен")]
+        [System.ComponentModel.DataAnnotations.MinLength(6, ErrorMessage = "Минимум 6 символов")]
+        [System.ComponentModel.DataAnnotations.DataType(System.ComponentModel.DataAnnotations.DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.DataType(System.ComponentModel.DataAnnotations.DataType.Password)]
+        [System.ComponentModel.DataAnnotations.Compare("Password", ErrorMessage = "Пароли не совпадают")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

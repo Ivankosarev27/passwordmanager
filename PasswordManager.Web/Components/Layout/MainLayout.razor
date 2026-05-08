@@ -1,0 +1,73 @@
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+
+<div class="app-wrapper">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <span class="brand-icon">🔐</span>
+            <span class="brand-text">PassVault</span>
+        </div>
+
+        <AuthorizeView>
+            <Authorized>
+                <nav class="sidebar-nav">
+                    <NavLink href="/" Match="NavLinkMatch.All" class="nav-item">
+                        <span>🏠</span> Главная
+                    </NavLink>
+                    <NavLink href="/passwords" class="nav-item">
+                        <span>🔑</span> Мои пароли
+                    </NavLink>
+                    <NavLink href="/favorites" class="nav-item">
+                        <span>⭐</span> Избранное
+                    </NavLink>
+                    <NavLink href="/tags" class="nav-item">
+                        <span>🏷️</span> Теги
+                    </NavLink>
+                    <NavLink href="/add" class="nav-item">
+                        <span>➕</span> Добавить
+                    </NavLink>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <NavLink href="/Account/Manage" class="nav-item">
+                        <span>👤</span> Профиль
+                    </NavLink>
+                    <form method="post" action="/Account/Logout">
+                        <AntiforgeryToken />
+                        <button type="submit" class="nav-item nav-logout">
+                            <span>🚪</span> Выйти
+                        </button>
+                    </form>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <nav class="sidebar-nav">
+                    <NavLink href="/Account/Login" class="nav-item">
+                        <span>🔓</span> Войти
+                    </NavLink>
+                    <NavLink href="/Account/Register" class="nav-item">
+                        <span>📝</span> Регистрация
+                    </NavLink>
+                </nav>
+            </NotAuthorized>
+        </AuthorizeView>
+    </aside>
+
+    <main class="main-content">
+        <div class="topbar">
+            <AuthorizeView>
+                <Authorized>
+                    <span class="topbar-user">👤 @context.User.Identity?.Name</span>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+        <div class="content-area">
+            @Body
+        </div>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    Произошла ошибка. <a href="" class="reload">Перезагрузить</a>
+    <a class="dismiss">✕</a>
+</div>

@@ -1,0 +1,67 @@
+@page "/Account/Manage"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using PasswordManager.Web.Data.Entities
+
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Профиль</PageTitle>
+
+<div class="page-header">
+    <h1>👤 Профиль</h1>
+</div>
+
+<div class="form-card" style="max-width:480px">
+    @if (_user != null)
+    {
+        <div class="profile-info">
+            <div class="profile-avatar">@_user.DisplayName.FirstOrDefault()</div>
+            <div>
+                <strong>@_user.DisplayName</strong>
+                <p class="text-muted">@_user.Email</p>
+                <small>Аккаунт создан: @_user.CreatedAt.ToString("dd.MM.yyyy")</small>
+            </div>
+        </div>
+
+        @if (_saved)
+        {
+            <div class="alert alert-success">✅ Сохранено!</div>
+        }
+
+        <div class="form-group" style="margin-top:1.5rem">
+            <label>Отображаемое имя</label>
+            <input class="form-control" @bind="_displayName" />
+        </div>
+
+        <button class="btn btn-primary" @onclick="SaveProfile">💾 Сохранить</button>
+    }
+</div>
+
+@code {
+    private ApplicationUser? _user;
+    private string _displayName = "";
+    private bool _saved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        _user = await UserManager.FindByIdAsync(userId);
+        _displayName = _user?.DisplayName ?? "";
+    }
+
+    private async Task SaveProfile()
+    {
+        if (_user is null) return;
+        _user.DisplayName = _displayName;
+        await UserManager.UpdateAsync(_user);
+        _saved = true;
+        StateHasChanged();
+        await Task.Delay(2000);
+        _saved = false;
+    }
+}

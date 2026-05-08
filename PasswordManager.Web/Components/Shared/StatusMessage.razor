@@ -1,0 +1,10 @@
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="alert @(Message.StartsWith("Ошибка") ? "alert-danger" : "alert-info")">
+        @Message
+    </div>
+}
+
+@code {
+    [Parameter] public string? Message { get; set; }
+}
